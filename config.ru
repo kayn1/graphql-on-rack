@@ -4,13 +4,21 @@
 
 require 'rack'
 require 'json'
+require 'pry'
 require_relative 'api_schema'
+require 'active_record'
 
 class Api
   def initialize(schema, context = {})
     @schema = schema
     @context = context
   end
+
+  env = 'development'
+  root   = File.expand_path '..', __FILE__
+  config = YAML.load(File.read(File.join(root, 'db/database.yml')))
+  ActiveRecord::Base.configurations = config
+  ActiveRecord::Base.establish_connection env.to_sym
 
   def response(response, status: 200)
     [
@@ -47,12 +55,16 @@ class Api
 
   def build_result
     ApiSchema.execute(
-      @payload['query'],
+      payload['query'],
       variables: payload['variables'],
       operation_name: payload['operationName'],
       context: @context
     ).to_json
   end
+end
+
+Dir.glob("./models/*.rb").sort.each do |file|
+  require file
 end
 
 run Api.new(schema: ApiSchema)
